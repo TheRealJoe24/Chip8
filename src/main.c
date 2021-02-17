@@ -50,9 +50,9 @@ int main(int argc, char *argv[]) {
     FILE *fp;
 
     /* load rom file */
-    load_rom_file(fp, "test.bin");
+    load_rom_file(fp, "tetris.rom");
 
-    printf("File preview:\n");
+    printf("ROM Preview:\n");
     for (size_t i = 0; i < 64; i++) {
         if (i % 16 == 0) printf("0x%08x  ", i);
         printf("0x%x ", rom[i]);
