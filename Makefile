@@ -23,6 +23,6 @@ $(PROJECT_NAME): $(OBJ_FILES)
 	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
 
 clean:
-	rm $(OBJ_FILES) $(DEPFILES) $(PROJECT_NAME)
+	rm $(OBJ_FILES) $(DEPFILES) $(PROJECT_NAME).out
 
 -include $(DEPFILES)
