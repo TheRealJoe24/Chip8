@@ -16,6 +16,14 @@ DEPFILES := $(SRC_FILES:.c=.d)
 
 all: $(PROJECT_NAME)
 
+run: all
+	echo
+	echo ----------------------------------------------------------------------
+	echo 
+	./$(PROJECT_NAME).out
+
+test: run clean
+
 $(PROJECT_NAME): $(OBJ_FILES)
 	$(CC) $(LDFLAGS) $^ -o $@.out
 

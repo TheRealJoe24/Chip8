@@ -47,23 +47,35 @@ int main(int argc, char *argv[]) {
     chip_initialize();
     print_memory_map();
 
-    
+    FILE *fp;
+
+    /* load rom file */
+    load_rom_file(fp, "test.bin");
+
+    printf("File preview:\n");
+    for (size_t i = 0; i < 64; i++) {
+        if (i % 16 == 0) printf("0x%08x  ", i);
+        printf("0x%x ", rom[i]);
+        if ((i+1) % 16 == 0) printf("\n");
+    }
+    printf("[...]\n");
+    printf("0x%08x\n\n", ROM_SIZE);
 }
 
 
 void load_rom_file(FILE *fp, const char *fname) {
-    // fp = fopen(fname, "rb");
-    // memset(rom, 0, 0x4000);
-    // if (r->fp == NULL) {
-    //     printf("ERROR: ROM FILE '%s' DOES NOT EXIST.\n", fname);
-    //     exit(-1);
-    // }
-    // printf("Successfuly opened '%s'.\n", fname);
-    // printf("Reading from binary file...\n");
-    // const size_t fsize = fread(r->rom, sizeof(uint8_t), 0x4000, r->fp);
-    // printf("Successfuly read '%d' bytes (%dkb) from '%s'\n", fsize, fsize/1024, fname);
-    // printf("Now closing file\n\n");
-    // fclose(r->fp);
+    fp = fopen(fname, "rb");
+    memset(rom, 0, ROM_SIZE);
+    if (fp == NULL) {
+        printf("ERROR: ROM FILE '%s' DOES NOT EXIST.\n", fname);
+        exit(-1);
+    }
+    printf("Successfuly opened '%s'.\n", fname);
+    printf("Reading from binary file...\n");
+    const size_t fsize = fread(rom, sizeof(uint8_t), ROM_SIZE, fp);
+    printf("Successfuly read %d bytes (%dkb) from '%s'\n", fsize, fsize/1024, fname);
+    printf("Now closing file\n\n");
+    fclose(fp);
 }
 
 void chip_initialize( void ) {
