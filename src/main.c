@@ -14,6 +14,7 @@ SDL_Renderer *renderer;
 #define SCREEN_HEIGHT 32
 #define WINDOW_WIDTH SCREEN_WIDTH*SCALE
 #define WINDOW_HEIGHT SCREEN_HEIGHT*SCALE
+#define BIT_TO_PIXEL(bit) (0xFFFFFF00 * (uint8_t)bit) | 0x000000FF
 
 /* memory map */
 #define RAM_START 0x0000
@@ -30,7 +31,7 @@ uint8_t *rom;
 uint16_t stack[0xF];
 
 /* video memory */
-uint32_t video_buffer[64*32];
+uint32_t video_buffer[SCREEN_WIDTH*SCREEN_HEIGHT];
 
 /* general purpose 8-bit regs */
 uint8_t V[0xF];
@@ -78,6 +79,8 @@ int main(int argc, char *argv[]) {
     printf("[...]\n");
     printf("0x%08x\n\n", ROM_SIZE);
 
+    initialize_sdl();
+
     int quit = 0;
     while (!quit) {
         SDL_Event e;
@@ -86,7 +89,7 @@ int main(int argc, char *argv[]) {
                 quit = 1;
             }
         }
-        video_buffer[150] = (0xFFFFFF00 * 1) | 0x000000FF;
+        video_buffer[150] = BIT_TO_PIXEL(1);
         SDL_UpdateTexture(texture, NULL, video_buffer, 64 * sizeof(uint32_t));
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, texture, NULL, NULL);
