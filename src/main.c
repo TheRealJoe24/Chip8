@@ -59,7 +59,12 @@ void chip_initialize( void );
 /* print chip8 memory map */
 void print_memory_map( void );
 
+/* initialize display */
 void initialize_sdl( void );
+/* update display */
+void sdl_update( void );
+/* quit sdl */
+void sdl_close( void );
 
 int main(int argc, char *argv[]) {
     chip_initialize();
@@ -90,16 +95,10 @@ int main(int argc, char *argv[]) {
             }
         }
         video_buffer[150] = BIT_TO_PIXEL(1);
-        SDL_UpdateTexture(texture, NULL, video_buffer, 64 * sizeof(uint32_t));
-        SDL_RenderClear(renderer);
-        SDL_RenderCopy(renderer, texture, NULL, NULL);
-        SDL_RenderPresent(renderer);
+        sdl_update();
     }
 
-    SDL_DestroyWindow(window);
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyTexture(texture);
-    SDL_Quit();
+    sdl_close();
 }
 
 
@@ -145,4 +144,18 @@ void initialize_sdl( void ) {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
     SDL_RenderPresent(renderer);
+}
+
+void sdl_update( void ) {
+    SDL_UpdateTexture(texture, NULL, video_buffer, 64 * sizeof(uint32_t));
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
+}
+
+void sdl_close( void ) {
+    SDL_DestroyWindow(window);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyTexture(texture);
+    SDL_Quit();
 }
