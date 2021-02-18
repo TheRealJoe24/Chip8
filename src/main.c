@@ -30,7 +30,6 @@ SDL_Renderer *renderer;
 
 /* instructions */
 #define CLS() for (int i = 0; i < SCREEN_WIDTH*SCREEN_HEIGHT; i++) display[i]=0
-//#define RET()
 
 /* memory map */
 #define RAM_START  0x0000
