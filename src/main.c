@@ -19,23 +19,62 @@ SDL_Renderer *renderer;
 #define POLL_EVENTS(evt) while (SDL_PollEvent(&evt)) if (evt.type == SDL_QUIT) quit=1;
 /* calculate pixel value from single bit */
 #define BIT_TO_PIXEL(bit) (0xFFFFFF00 * (uint8_t)bit) | 0x000000FF
+/* map pointer to section in memory (will erase all data in that section) */
+#define MAP_TO(ptr0, ptr1, start, size) ptr0 = (ptr1+start); memset(ptr0, 0, size)
+/* get lower 8-bits of address */
+#define LOW_8(address) (uint8_t)(address & 0xFF)
+/* get upper 8-bits of address */
+#define HIGH_8(address) (uint8_t)((address>>8) & 0xFF)
+/* combine two 8-bit values (little endian) */
+#define MAKE_16(a, b) (uint16_t)(((b & 0xFF) << 8) | (a & 0xFF))
+
+/* instructions */
+#define CLS() for (int i = 0; i < SCREEN_WIDTH*SCREEN_HEIGHT; i++) display[i]=0
+//#define RET()
 
 /* memory map */
-#define RAM_START 0x0000
-#define ROM_START 0x0200
-#define RAM_END   0x0FFF
-#define RAM_SIZE  0x1000
-#define ROM_SIZE  0x0E00
+#define RAM_START  0x0000
+#define ROM_START  0x0200
+#define RAM_END    0x0FFF
+#define RAM_SIZE   0x1000
+#define ROM_SIZE   0x0E00
+#define FONT_START 0x0000
+#define FONT_END   0x004F
+#define FONT_SIZE  0x0050
+#define RES_START  0x0000
+#define RES_END    0x01FF
+#define RES_SIZE   0x0200
 
 /* ram */
 uint8_t ram[RAM_SIZE];
 /* rom */
-uint8_t *rom;
+uint8_t *rom; /* mapped to 0x200-0xFFF of RAM */
+/* fontset */
+uint8_t fontset[0x50] = {
+    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, // a
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, // b
+    0xF0, 0x80, 0x80, 0x80, 0xF0, // c
+    0xE0, 0x90, 0x90, 0x90, 0xE0, // d
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, // e
+    0xF0, 0x80, 0xF0, 0x80, 0x80, // f
+};
+/* reserved */
+uint8_t *res;
 /* stack */
 uint16_t stack[0xF];
 
 /* video memory */
-uint32_t video_buffer[SCREEN_WIDTH*SCREEN_HEIGHT];
+uint32_t display[SCREEN_WIDTH*SCREEN_HEIGHT];
 
 /* general purpose 8-bit regs */
 uint8_t V[0xF];
@@ -64,6 +103,8 @@ void chip_initialize( void );
 void print_memory_map( void );
 /* print preview of rom file */
 void print_rom( void );
+/* take a snapshot of ram */
+void ram_snapshot( void );
 
 /* initialize display */
 void initialize_sdl( void );
@@ -72,6 +113,29 @@ void sdl_update( void );
 /* quit sdl */
 void sdl_close( void );
 
+
+/* execute next instruction in ROM */
+void execute_next( void ) {
+    uint16_t inst = rom[PC+=2];
+    uint8_t low = LOW_8(inst);
+    uint8_t high = HIGH_8(inst);
+    uint16_t addr = inst & 0xfff; // 12 bit address
+    uint8_t l = (low >> 4) & 0xF; // highest 4 bits of the lower byte
+    uint8_t n = low & 0xF; // lowest 4 bits
+    uint8_t x = high & 0xF; // lower 4 bits of the higher byte
+    uint8_t y = (high >> 4) & 0xF; // highest 4 bits
+    uint8_t b = low; // lower byte
+
+    switch (y) {
+        default:
+            break;
+        case 0: {
+            if (n == 0) {
+
+            }
+        }
+    }
+}
 
 int main(int argc, char *argv[]) {
     /* initialize the chip8 */
@@ -96,6 +160,8 @@ int main(int argc, char *argv[]) {
         POLL_EVENTS(e);
         sdl_update();
     }
+
+    ram_snapshot();
 
     sdl_close();
 }
@@ -124,15 +190,21 @@ void chip_initialize( void ) {
     dt = 0;
     PC = 0;
     SP = 0;
-    /* map rom to ram starting at ROM */
-    rom = (ram+ROM_START);
+    /* map rom to ram starting at 0x200 */
+    MAP_TO(rom, ram, ROM_START, ROM_SIZE);
+    /* map reserved space to ram */
+    MAP_TO(res, ram, RES_START, RES_SIZE);
+
+    /* copy fontset to ram */
+    memcpy(res, fontset, FONT_SIZE);
 }
 
 void print_memory_map( void ) {
     printf("RAM:    0x%04X - 0x%04X   (0x%05X)  (%ikb)\n", RAM_START, RAM_END, RAM_SIZE, RAM_SIZE/1024);
+    printf("FONT:   0x%04X - 0x%04X   (0x%05X)  (0kb)\n", FONT_START, FONT_END, FONT_SIZE);
     printf("ROM:    0x%04X - 0x%04X   (0x%05X)  (%ikb)\n", ROM_START, RAM_END, RAM_SIZE-ROM_START, (RAM_SIZE-ROM_START)/1024);
-    printf("STACK:  0x%04X - 0x%04X   (0x%05X)\n", 0, 31, 32);
-    printf("REG:    0x%04X - 0x%04X   (0x%05X)\n\n", 0, 15, 16);
+    printf("STACK:  0x%04X - 0x%04X   (0x%05X)  (0kb)\n", 0, 31, 32);
+    printf("REG:    0x%04X - 0x%04X   (0x%05X)  (0kb)\n\n", 0, 15, 16);
 }
 
 void print_rom( void ) {
@@ -146,6 +218,16 @@ void print_rom( void ) {
     printf("0x%08x\n\n", ROM_SIZE);
 }
 
+void ram_snapshot( void ) {
+    FILE *fp = fopen("ram.txt", "w");
+    for (size_t i = 0; i < RAM_SIZE; i++) {
+        if (i % 16 == 0) fprintf(fp, "0x%08x  ", i);
+        fprintf(fp, "0x%02x ", ram[i]);
+        if ((i+1) % 16 == 0) fprintf(fp, "\n");
+    }
+    fclose(fp);
+}
+
 void initialize_sdl( void ) {
     SDL_Init(SDL_INIT_EVERYTHING);
     window = SDL_CreateWindow("Chip8", 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
@@ -157,7 +239,7 @@ void initialize_sdl( void ) {
 }
 
 void sdl_update( void ) {
-    SDL_UpdateTexture(texture, NULL, video_buffer, 64 * sizeof(uint32_t));
+    SDL_UpdateTexture(texture, NULL, display, 64 * sizeof(uint32_t));
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
