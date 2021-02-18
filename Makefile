@@ -5,8 +5,8 @@ WARNINGS := -Wall -Wextra -pedantic -Wshadow -Wpointer-arith -Wcast-align \
             -Wwrite-strings -Wmissing-prototypes -Wmissing-declarations \
             -Wredundant-decls -Wnested-externs -Winline \
             -Wuninitialized -Wconversion -Wstrict-prototypes
-CFLAGS := -g -std=c99 $(WARNINGS)
-LDFLAGS ?=
+CFLAGS := -g -std=c99 $(WARNINGS) `pkg-config --cflags --libs sdl2` -I /usr/include/SDL2
+LDFLAGS := 
 
 .PHONY: all clean
 
@@ -25,10 +25,10 @@ run: all
 test: run clean
 
 $(PROJECT_NAME): $(OBJ_FILES)
-	$(CC) $(LDFLAGS) $^ -o $@.out
+	$(CC) $(LDFLAGS) $^ -o $@.out -lSDL2
 
 %.o: %.c
-	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
+	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@ -lSDL2
 
 clean:
 	rm $(OBJ_FILES) $(DEPFILES) $(PROJECT_NAME).out

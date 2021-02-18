@@ -3,6 +3,18 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <SDL2/SDL.h>
+
+/* SDL */
+SDL_Window *window;
+SDL_Texture *texture;
+SDL_Renderer *renderer;
+#define SCALE 10
+#define SCREEN_WIDTH 64
+#define SCREEN_HEIGHT 32
+#define WINDOW_WIDTH SCREEN_WIDTH*SCALE
+#define WINDOW_HEIGHT SCREEN_HEIGHT*SCALE
+
 /* memory map */
 #define RAM_START 0x0000
 #define ROM_START 0x0200
@@ -16,6 +28,9 @@ uint8_t ram[RAM_SIZE];
 uint8_t *rom;
 /* stack */
 uint16_t stack[0xF];
+
+/* video memory */
+uint32_t video_buffer[64*32];
 
 /* general purpose 8-bit regs */
 uint8_t V[0xF];
@@ -43,6 +58,8 @@ void chip_initialize( void );
 /* print chip8 memory map */
 void print_memory_map( void );
 
+void initialize_sdl( void );
+
 int main(int argc, char *argv[]) {
     chip_initialize();
     print_memory_map();
@@ -60,6 +77,26 @@ int main(int argc, char *argv[]) {
     }
     printf("[...]\n");
     printf("0x%08x\n\n", ROM_SIZE);
+
+    int quit = 0;
+    while (!quit) {
+        SDL_Event e;
+        while (SDL_PollEvent(&e)) {
+            if (e.type == SDL_QUIT) {
+                quit = 1;
+            }
+        }
+        video_buffer[150] = (0xFFFFFF00 * 1) | 0x000000FF;
+        SDL_UpdateTexture(texture, NULL, video_buffer, 64 * sizeof(uint32_t));
+        SDL_RenderClear(renderer);
+        SDL_RenderCopy(renderer, texture, NULL, NULL);
+        SDL_RenderPresent(renderer);
+    }
+
+    SDL_DestroyWindow(window);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyTexture(texture);
+    SDL_Quit();
 }
 
 
@@ -95,4 +132,14 @@ void print_memory_map( void ) {
     printf("ROM:    0x%04X - 0x%04X   (0x%05X)  (%ikb)\n", ROM_START, RAM_END, RAM_SIZE-ROM_START, (RAM_SIZE-ROM_START)/1024);
     printf("STACK:  0x%04X - 0x%04X   (0x%05X)\n", 0, 31, 32);
     printf("REG:    0x%04X - 0x%04X   (0x%05X)\n\n", 0, 15, 16);
+}
+
+void initialize_sdl( void ) {
+    SDL_Init(SDL_INIT_EVERYTHING);
+    window = SDL_CreateWindow("Chip8", 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
+    renderer = SDL_CreateRenderer(window, -1, 0);
+    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 64, 32);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
+    SDL_RenderPresent(renderer);
 }
