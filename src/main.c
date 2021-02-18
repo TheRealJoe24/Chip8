@@ -9,12 +9,15 @@
 SDL_Window *window;
 SDL_Texture *texture;
 SDL_Renderer *renderer;
-#define SCALE 10
-#define SCREEN_WIDTH 64
-#define SCREEN_HEIGHT 32
-#define WINDOW_WIDTH SCREEN_WIDTH*SCALE
-#define WINDOW_HEIGHT SCREEN_HEIGHT*SCALE
-#define POLL_EVENTS() while (SDL_PollEvent(&e)) if (e.type == SDL_QUIT) quit=1;
+#define SCALE 10 /* scale from screen to window */
+#define SCREEN_WIDTH 64 /* screen buffer width */
+#define SCREEN_HEIGHT 32 /* screen buffer height */
+#define WINDOW_WIDTH SCREEN_WIDTH*SCALE /* window width */
+#define WINDOW_HEIGHT SCREEN_HEIGHT*SCALE /* window height */
+
+/* check if window should close ** quit must be defined as an integer */
+#define POLL_EVENTS(evt) while (SDL_PollEvent(&evt)) if (evt.type == SDL_QUIT) quit=1;
+/* calculate pixel value from single bit */
 #define BIT_TO_PIXEL(bit) (0xFFFFFF00 * (uint8_t)bit) | 0x000000FF
 
 /* memory map */
@@ -71,8 +74,8 @@ void sdl_close( void );
 
 
 int main(int argc, char *argv[]) {
+    /* initialize the chip8 */
     chip_initialize();
-    print_memory_map();
 
     FILE *fp;
 
@@ -81,12 +84,16 @@ int main(int argc, char *argv[]) {
     /* init sdl */
     initialize_sdl();
 
+    /* print rom contents */
+    print_rom();
+    /* print the memory map */
+    print_memory_map();
+
     /* main loop */
     int quit = 0;
     while (!quit) {
         SDL_Event e;
-        POLL_EVENTS();
-        video_buffer[150] = BIT_TO_PIXEL(1);
+        POLL_EVENTS(e);
         sdl_update();
     }
 
