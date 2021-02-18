@@ -14,6 +14,7 @@ SDL_Renderer *renderer;
 #define SCREEN_HEIGHT 32
 #define WINDOW_WIDTH SCREEN_WIDTH*SCALE
 #define WINDOW_HEIGHT SCREEN_HEIGHT*SCALE
+#define POLL_EVENTS() while (SDL_PollEvent(&e)) if (e.type == SDL_QUIT) quit=1;
 #define BIT_TO_PIXEL(bit) (0xFFFFFF00 * (uint8_t)bit) | 0x000000FF
 
 /* memory map */
@@ -58,6 +59,8 @@ const unsigned char keypad[16] = {
 void chip_initialize( void );
 /* print chip8 memory map */
 void print_memory_map( void );
+/* print preview of rom file */
+void print_rom( void );
 
 /* initialize display */
 void initialize_sdl( void );
@@ -65,6 +68,7 @@ void initialize_sdl( void );
 void sdl_update( void );
 /* quit sdl */
 void sdl_close( void );
+
 
 int main(int argc, char *argv[]) {
     chip_initialize();
@@ -74,26 +78,14 @@ int main(int argc, char *argv[]) {
 
     /* load rom file */
     load_rom_file(fp, "tetris.rom");
-
-    printf("ROM Preview:\n");
-    for (size_t i = 0; i < 64; i++) {
-        if (i % 16 == 0) printf("0x%08x  ", i);
-        printf("0x%x ", rom[i]);
-        if ((i+1) % 16 == 0) printf("\n");
-    }
-    printf("[...]\n");
-    printf("0x%08x\n\n", ROM_SIZE);
-
+    /* init sdl */
     initialize_sdl();
 
+    /* main loop */
     int quit = 0;
     while (!quit) {
         SDL_Event e;
-        while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT) {
-                quit = 1;
-            }
-        }
+        POLL_EVENTS();
         video_buffer[150] = BIT_TO_PIXEL(1);
         sdl_update();
     }
@@ -134,6 +126,17 @@ void print_memory_map( void ) {
     printf("ROM:    0x%04X - 0x%04X   (0x%05X)  (%ikb)\n", ROM_START, RAM_END, RAM_SIZE-ROM_START, (RAM_SIZE-ROM_START)/1024);
     printf("STACK:  0x%04X - 0x%04X   (0x%05X)\n", 0, 31, 32);
     printf("REG:    0x%04X - 0x%04X   (0x%05X)\n\n", 0, 15, 16);
+}
+
+void print_rom( void ) {
+    printf("ROM Preview:\n");
+    for (size_t i = 0; i < 64; i++) {
+        if (i % 16 == 0) printf("0x%08x  ", i);
+        printf("0x%x ", rom[i]);
+        if ((i+1) % 16 == 0) printf("\n");
+    }
+    printf("[...]\n");
+    printf("0x%08x\n\n", ROM_SIZE);
 }
 
 void initialize_sdl( void ) {
