@@ -36,10 +36,19 @@ SDL_Renderer *renderer;
 #define WINDOW_WIDTH SCREEN_WIDTH*SCALE /* window width */
 #define WINDOW_HEIGHT SCREEN_HEIGHT*SCALE /* window height */
 
-#define PRINT(s) printf(s)
+#define LOGGING 0
+
+#if LOGGING
+#define PRINT(...) printf (__VA_ARGS__)
+#else
+#define PRINT(...) 0
+#endif
+
+#define COLOR_FORGROUND 0x00FF00
+#define COLOR_MASK      0x000000FF
 
 /* calculate pixel value from single bit */
-#define BIT_TO_PIXEL(bit) ((0xFFFFFF00 * (uint8_t)bit) | 0x000000FF)
+#define BIT_TO_PIXEL(bit) (((COLOR_FORGROUND<<8) * (uint8_t)bit) | COLOR_MASK)
 /* calculate bit value from pixel */
 #define PIXEL_TO_BIT(bit) (((uint8_t)bit ^ 0x000000FF) / 0xFFFFFF00)
 /* map pointer to section in memory (will erase all data in that section) */
@@ -51,7 +60,7 @@ SDL_Renderer *renderer;
 /* combine two 8-bit values (little endian) */
 #define MAKE_16(a, b) (uint16_t)(((b & 0xFF) << 8) | (a & 0xFF))
 
-/* instructions */
+/* helper functions */
 #define WRAP_SP(sp) ((sp==0)?15:sp-1)
 #define WRAP_SPPU(sp) ((sp==15)?0:sp-1)
 #define MAP_PC(pc) (pc-0x200)
@@ -59,60 +68,46 @@ SDL_Renderer *renderer;
 #define PUSH(v) (stack[SP++]=v);if(SP>=16) SP=0
 #define RAND() rand()%256
 #define INDEX(x, y) (x+SCREEN_WIDTH*y)
-#define DISPLAY(x, y, ox, oy) display[INDEX((V[x]+ox<=0?SCREEN_WIDTH-1:(V[x]+ox>=SCREEN_WIDTH?0:V[x]+ox)),(V[y]+oy<=0?SCREEN_HEIGHT-1:(V[y]+oy>=SCREEN_HEIGHT?0:V[y]+oy)))]
-
+#define DISPLAY(x, y, ox, oy) display[INDEX((V[x]+ox<=0?SCREEN_WIDTH-1:(V[x]+ox>=SCREEN_WIDTH?0:V[x]+ox)),((V[y]+oy+1)==0?SCREEN_HEIGHT-1:(V[y]+oy>=SCREEN_HEIGHT?0:V[y]+oy)))]
 
 #define KEY(i) (keypad[i])
-
 #define HLT() hlt=1
 
-#define CLS() PRINT("CLS\n");for(int i=0;i<SCREEN_WIDTH*SCREEN_HEIGHT;i++)display[i]=0;PC+=2
-#define RET() PRINT("RET\n");PC=POP();PC+=2
-#define JP(addr) PRINT("JP\n"); PC=MAP_PC(addr)
-#define CALL(addr) PRINT("CALL\n");PUSH(PC); JP(addr)
-#define SE(x, b) PRINT("SE\n");if(V[x]==b)PC+=2;PC+=2
-#define SNE(x, b) PRINT("SNE\n");if(V[x]!=b)PC+=2;PC+=2
-#define SER(x, y) PRINT("SER\n");if(V[x]==V[y])PC+=2;PC+=2
-#define SNER(x, y) PRINT("SNER\n");if(V[x]!=V[y])PC+=2;PC+=2
-#define LD(x, b) PRINT("LD\n");V[x]=b;PC+=2
-#define ADD(x, b) PRINT("ADD\n");V[x]=V[x]+b;PC+=2
-#define LDR(x, y) PRINT("LDR\n");V[x]=V[y];PC+=2
-#define OR(x, y) PRINT("OR\n");V[x]=V[x]|V[y];PC+=2
-#define AND(x, y) PRINT("AND\n");V[x]=V[x]&V[y];PC+=2
-#define XOR(x, y) PRINT("XOR\n");V[x]=V[x]^V[y];PC+=2
+/* instruction set */
+#define CLS()         PRINT("CLS\n");for(int i=0;i<SCREEN_WIDTH*SCREEN_HEIGHT;i++)display[i]=0;PC+=2
+#define RET()         PRINT("RET\n");PC=POP();PC+=2
+#define JP(addr)      PRINT("JP\n"); PC=MAP_PC(addr)
+#define CALL(addr)    PRINT("CALL\n");PUSH(PC); JP(addr)
+#define SE(x, b)      PRINT("SE\n");if(V[x]==b)PC+=2;PC+=2
+#define SNE(x, b)     PRINT("SNE\n");if(V[x]!=b)PC+=2;PC+=2
+#define SER(x, y)     PRINT("SER\n");if(V[x]==V[y])PC+=2;PC+=2
+#define SNER(x, y)    PRINT("SNER\n");if(V[x]!=V[y])PC+=2;PC+=2
+#define LD(x, b)      PRINT("LD\n");V[x]=b;PC+=2
+#define ADD(x, b)     PRINT("ADD\n");V[x]=V[x]+b;PC+=2
+#define LDR(x, y)     PRINT("LDR\n");V[x]=V[y];PC+=2
+#define OR(x, y)      PRINT("OR\n");V[x]=V[x]|V[y];PC+=2
+#define AND(x, y)     PRINT("AND\n");V[x]=V[x]&V[y];PC+=2
+#define XOR(x, y)     PRINT("XOR\n");V[x]=V[x]^V[y];PC+=2
 #define ADDR(x, y, p) PRINT("ADDR\n");p=V[x]+V[y];V[0xF]=(p>=256?1:0);V[x]=(uint8_t)p;PC+=2
-#define SUBR(x, y) PRINT("SUBR\n");V[0xF]=(V[x]>V[y]?1:0);V[x]=V[y]-V[x];PC+=2
-#define SHR(x, y) PRINT("SHR\n");V[0xF]=V[x]&1;V[x]/=2;PC+=2
-#define SUBN(x, y) PRINT("SUBN\n");V[0xF]=(V[y]>V[x]?1:0);V[x]=V[x]-V[y];PC+=2
-#define SHL(x, y) PRINT("SHL\n");V[0xF]=V[x]&0x80;V[x]*=2;PC+=2
-#define LDI(addr) PRINT("LDI\n");I=addr;PC+=2
-#define JPO(addr) PRINT("JPO\n");JP(addr+V[0]);PC+=2
-#define RND(x, b) PRINT("RND\n");V[x]=RAND()&b;PC+=2
-
-#define DRW(x, y, n) PRINT("DRW\n");V[0xF]=0;\
-for(int yc=0;yc<n;yc++){\
-    uint16_t pix=ram[I+yc];\
-    for(int xc=0;xc<8;xc++){\
-        if((pix&(0x80>>xc))!=0){\
-            if (DISPLAY(x,y,xc,yc) == 1){\
-                V[0xF]=1;\
-            }\
-            DISPLAY(x,y,xc,yc)^=1;\
-        }\
-}}drawflag=1;PC+=2\
-
-
-#define SKP(x) PRINT("SKP\n");if(KEY(V[x])==1) PC+=4; else PC+=2
-#define SKNP(x) PRINT("SKNP\n");if(KEY(V[x])!=1) PC+=4; else PC+=2
-#define LDT(x) PRINT("LDT\n");V[x]=dt;PC+=2
-#define LDK(x) PRINT("LDK\n");for (int i = 0; i < 16; i++) { if(V[x]=keypad[i]) V[x]; }PC+=2
-#define LDTT(x) PRINT("LDTT\n");dt=V[x];PC+=2
-#define LDST(x) PRINT("LDST\n");st=V[x];PC+=2
-#define ADDI(x) PRINT("ADDI\n");I=V[x]+I;PC+=2
-#define LDF(x) PRINT("LDF\n");I=(5*(uint16_t)V[x]);PC+=2
-#define LDB(x) PRINT("LDB\n");ram[I]=(V[x]/100);ram[I+1]=(V[x]/10);ram[I+2]=(V[x]*10);PC+=2
-#define LDRX(x) PRINT("LDRX\n");for(int i=0;i<=x;i++) ram[I+i]=V[i];PC+=2
-#define LDRRX(x) PRINT("LDRRX\n");for(int i=0;i<=x;i++) V[i]=ram[I+i];PC+=2
+#define SUBR(x, y)    PRINT("SUBR\n");V[0xF]=(V[x]>V[y]?1:0);V[x]=V[y]-V[x];PC+=2
+#define SHR(x, y)     PRINT("SHR\n");V[0xF]=V[x]&1;V[x]/=2;PC+=2
+#define SUBN(x, y)    PRINT("SUBN\n");V[0xF]=(V[y]>V[x]?1:0);V[x]=V[x]-V[y];PC+=2
+#define SHL(x, y)     PRINT("SHL\n");V[0xF]=V[x]&0x80;V[x]*=2;PC+=2
+#define LDI(addr)     PRINT("LDI\n");I=addr;PC+=2
+#define JPO(addr)     PRINT("JPO\n");JP(addr+V[0]);PC+=2
+#define RND(x, b)     PRINT("RND\n");V[x]=RAND()&b;PC+=2
+#define DRW(x, y, n)  PRINT("DRW\n");V[0xF]=0;for(int yc=0;yc<n;yc++){uint16_t pix=ram[I+yc];for(int xc=0;xc<8;xc++){if((pix&(0x80>>xc))!=0){if (DISPLAY(x,y,xc,yc) == 1){V[0xF]=1;}DISPLAY(x,y,xc,yc)^=1;}}}drawflag=1;PC+=2
+#define SKP(x)        PRINT("SKP\n");if(KEY(V[x])==1) PC+=4; else PC+=2
+#define SKNP(x)       PRINT("SKNP\n");if(KEY(V[x])!=1) PC+=4; else PC+=2
+#define LDT(x)        PRINT("LDT\n");V[x]=dt;PC+=2
+#define LDK(x)        PRINT("LDK\n");for (int i = 0; i < 16; i++) { if(V[x]=keypad[i]) V[x]; }PC+=2
+#define LDTT(x)       PRINT("LDTT\n");dt=V[x];PC+=2
+#define LDST(x)       PRINT("LDST\n");st=V[x];PC+=2
+#define ADDI(x)       PRINT("ADDI\n");I=V[x]+I;PC+=2
+#define LDF(x)        PRINT("LDF\n");I=(5*(uint16_t)V[x]);PC+=2
+#define LDB(x)        PRINT("LDB\n");ram[I]=(V[x]/100);ram[I+1]=(V[x]/10);ram[I+2]=(V[x]*10);PC+=2
+#define LDRX(x)       PRINT("LDRX\n");for(int i=0;i<=x;i++) ram[I+i]=V[i];PC+=2
+#define LDRRX(x)      PRINT("LDRRX\n");for(int i=0;i<=x;i++) V[i]=ram[I+i];PC+=2
 
 /* memory map */
 #define RAM_START  0x0000
@@ -214,7 +209,7 @@ void update_cpu( void ) {
     uint8_t kk = inst & 0x00FF;
     uint8_t n = inst & 0x000F;
 
-    //printf("kk: %x\n", kk);
+    //PRINT("kk: %x\n", kk);
     uint16_t p;
 
     switch ((inst&0xF000)>>12) {
@@ -311,9 +306,9 @@ void update_cpu( void ) {
             else if (kk==0x65) { LDRRX(x); }
             break;
     }
-    for (int i = 0; i < 16; i++) printf("R%i: 0x%x\n", i, V[i]);
-    printf("PC: %i, SP:%i 0x%x, I:%x\n", PC, SP, inst, I);
-    printf("\n");
+    for (int i = 0; i < 16; i++) PRINT("R%i: 0x%x\n", i, V[i]);
+    PRINT("PC: %i, SP:%i 0x%x, I:%x\n", PC, SP, inst, I);
+    PRINT("\n");
 }
 
 void display_snapshot( void );
@@ -383,19 +378,19 @@ void load_rom_file(FILE *fp, const char *fname) {
     fp = fopen(fname, "rb");
     memset(rom, 0, ROM_SIZE);
     if (fp == NULL) {
-        printf("ERROR: ROM FILE '%s' DOES NOT EXIST.\n", fname);
+        PRINT("ERROR: ROM FILE '%s' DOES NOT EXIST.\n", fname);
         exit(-1);
     }
-    printf("Successfuly opened '%s'.\n", fname);
-    printf("Reading from binary file...\n");
+    PRINT("Successfuly opened '%s'.\n", fname);
+    PRINT("Reading from binary file...\n");
     const size_t fsize = fread(rom, sizeof(uint8_t), ROM_SIZE, fp);
-    printf("Successfuly read %d bytes (%dkb) from '%s'\n", fsize, fsize/1024, fname);
-    printf("Now closing file\n\n");
+    PRINT("Successfuly read %d bytes (%dkb) from '%s'\n", fsize, fsize/1024, fname);
+    PRINT("Now closing file\n\n");
     fclose(fp);
 }
 
 void chip_initialize( void ) {
-    srand(0); /* seed rand */
+    srand(time(NULL)); /* seed rand */
     memset(ram, 0, RAM_SIZE*sizeof(uint8_t));
     memset(stack, 0, 0xF*sizeof(uint16_t));
     memset(V, 0, 0xF*sizeof(uint8_t));
@@ -413,22 +408,22 @@ void chip_initialize( void ) {
 }
 
 void print_memory_map( void ) {
-    printf("RAM:    0x%04X - 0x%04X   (0x%05X)  (%ikb)\n", RAM_START, RAM_END, RAM_SIZE, RAM_SIZE/1024);
-    printf("FONT:   0x%04X - 0x%04X   (0x%05X)  (0kb)\n", FONT_START, FONT_END, FONT_SIZE);
-    printf("ROM:    0x%04X - 0x%04X   (0x%05X)  (%ikb)\n", ROM_START, RAM_END, RAM_SIZE-ROM_START, (RAM_SIZE-ROM_START)/1024);
-    printf("STACK:  0x%04X - 0x%04X   (0x%05X)  (0kb)\n", 0, 31, 32);
-    printf("REG:    0x%04X - 0x%04X   (0x%05X)  (0kb)\n\n", 0, 15, 16);
+    PRINT("RAM:    0x%04X - 0x%04X   (0x%05X)  (%ikb)\n", RAM_START, RAM_END, RAM_SIZE, RAM_SIZE/1024);
+    PRINT("FONT:   0x%04X - 0x%04X   (0x%05X)  (0kb)\n", FONT_START, FONT_END, FONT_SIZE);
+    PRINT("ROM:    0x%04X - 0x%04X   (0x%05X)  (%ikb)\n", ROM_START, RAM_END, RAM_SIZE-ROM_START, (RAM_SIZE-ROM_START)/1024);
+    PRINT("STACK:  0x%04X - 0x%04X   (0x%05X)  (0kb)\n", 0, 31, 32);
+    PRINT("REG:    0x%04X - 0x%04X   (0x%05X)  (0kb)\n\n", 0, 15, 16);
 }
 
 void print_rom( void ) {
-    printf("ROM Preview:\n");
+    PRINT("ROM Preview:\n");
     for (size_t i = 0; i < 64; i++) {
-        if (i % 16 == 0) printf("0x%08x  ", i);
-        printf("0x%x ", rom[i]);
-        if ((i+1) % 16 == 0) printf("\n");
+        if (i % 16 == 0) PRINT("0x%08x  ", i);
+        PRINT("0x%x ", rom[i]);
+        if ((i+1) % 16 == 0) PRINT("\n");
     }
-    printf("[...]\n");
-    printf("0x%08x\n\n", ROM_SIZE);
+    PRINT("[...]\n");
+    PRINT("0x%08x\n\n", ROM_SIZE);
 }
 
 void ram_snapshot( void ) {
