@@ -13,6 +13,7 @@ LDFLAGS :=
 SRC_FILES := $(wildcard src/*.c)
 OBJ_FILES := $(SRC_FILES:.c=.o)
 DEPFILES := $(SRC_FILES:.c=.d)
+LIBS := -lSDL2
 
 all: $(PROJECT_NAME)
 
@@ -25,10 +26,10 @@ run: all
 test: run clean
 
 $(PROJECT_NAME): $(OBJ_FILES)
-	$(CC) $(LDFLAGS) $^ -o $@.out -lSDL2
+	$(CC) $(LDFLAGS) $^ -o $@.out $(LIBS)
 
 %.o: %.c
-	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@ -lSDL2
+	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@ $(LIBS)
 
 clean:
 	rm $(OBJ_FILES) $(DEPFILES) $(PROJECT_NAME).out
