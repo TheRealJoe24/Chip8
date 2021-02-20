@@ -40,11 +40,17 @@ SDL_Renderer *renderer;
 #define MODE_PLAY 1
 
 #define LOGGING 0
+#define LOG_OP  0
 
 #if LOGGING
 #define PRINT(...) printf (__VA_ARGS__)
 #else
 #define PRINT(...) 0
+#endif
+#if LOG_OP
+#define PRINT_OP(...) printf (__VA_ARGS__)
+#else
+#define PRINT_OP(...) 0
 #endif
 
 #define COLOR_FORGROUND 0x00FF00
@@ -71,45 +77,45 @@ SDL_Renderer *renderer;
 #define PUSH(v)               (stack[SP++]=v);if(SP>=16)SP=0
 #define RAND()                (rand()%256)
 #define INDEX(x, y)           (x+SCREEN_WIDTH*y)
-#define DISPLAY(x, y, ox, oy) (display[INDEX((V[x]+ox<=0?SCREEN_WIDTH-1:(V[x]+ox>=SCREEN_WIDTH?0:V[x]+ox)),((V[y]+oy+1)==0?SCREEN_HEIGHT-1:(V[y]+oy>=SCREEN_HEIGHT?0:V[y]+oy)))])
+#define DISPLAY(x, y, ox, oy) (display[INDEX(((V[x]+ox+1)==0?SCREEN_WIDTH-1:(V[x]+ox>=SCREEN_WIDTH?0:V[x]+ox)),((V[y]+oy+1)==0?SCREEN_HEIGHT-1:(V[y]+oy>=SCREEN_HEIGHT?0:V[y]+oy)))])
 #define KEY(i) (keypad[i])
 #define HLT() hlt=1
 
 /* instruction set */
-#define CLS()         PRINT("CLS\n");   for(int i=0;i<SCREEN_WIDTH*SCREEN_HEIGHT;i++)display[i]=0;PC+=2
-#define RET()         PRINT("RET\n");   PC=POP();PC+=2
-#define JP(addr)      PRINT("JP\n");    PC=MAP_PC(addr)
-#define CALL(addr)    PRINT("CALL\n");  PUSH(PC); JP(addr)
-#define SE(x, b)      PRINT("SE\n");    if(V[x]==b)PC+=2;PC+=2
-#define SNE(x, b)     PRINT("SNE\n");   if(V[x]!=b)PC+=2;PC+=2
-#define SER(x, y)     PRINT("SER\n");   if(V[x]==V[y])PC+=2;PC+=2
-#define SNER(x, y)    PRINT("SNER\n");  if(V[x]!=V[y])PC+=2;PC+=2
-#define LD(x, b)      PRINT("LD\n");    V[x]=b;PC+=2
-#define ADD(x, b)     PRINT("ADD\n");   V[x]=V[x]+b;PC+=2
-#define LDR(x, y)     PRINT("LDR\n");   V[x]=V[y];PC+=2
-#define OR(x, y)      PRINT("OR\n");    V[x]=V[x]|V[y];PC+=2
-#define AND(x, y)     PRINT("AND\n");   V[x]=V[x]&V[y];PC+=2
-#define XOR(x, y)     PRINT("XOR\n");   V[x]=V[x]^V[y];PC+=2
-#define ADDR(x, y, p) PRINT("ADDR\n");  p=V[x]+V[y];V[0xF]=(p>=256?1:0);V[x]=(uint8_t)p;PC+=2
-#define SUBR(x, y)    PRINT("SUBR\n");  V[0xF]=(V[x]>V[y]?1:0);V[x]=V[y]-V[x];PC+=2
-#define SHR(x, y)     PRINT("SHR\n");   V[0xF]=V[x]&1;V[x]/=2;PC+=2
-#define SUBN(x, y)    PRINT("SUBN\n");  V[0xF]=(V[y]>V[x]?1:0);V[x]=V[x]-V[y];PC+=2
-#define SHL(x, y)     PRINT("SHL\n");   V[0xF]=V[x]&0x80;V[x]*=2;PC+=2
-#define LDI(addr)     PRINT("LDI\n");   I=addr;PC+=2
-#define JPO(addr)     PRINT("JPO\n");   JP(addr+V[0]);PC+=2
-#define RND(x, b)     PRINT("RND\n");   V[x]=RAND()&b;PC+=2
-#define DRW(x, y, n)  PRINT("DRW\n");   V[0xF]=0;for(int yc=0;yc<n;yc++){uint16_t pix=ram[I+yc];for(int xc=0;xc<8;xc++){if((pix&(0x80>>xc))!=0){if (DISPLAY(x,y,xc,yc) == 1){V[0xF]=1;}DISPLAY(x,y,xc,yc)^=1;}}}drawflag=1;PC+=2
-#define SKP(x)        PRINT("SKP\n");   if(KEY(V[x])==1) PC+=4; else PC+=2
-#define SKNP(x)       PRINT("SKNP\n");  if(KEY(V[x])!=1) PC+=4; else PC+=2
-#define LDT(x)        PRINT("LDT\n");   V[x]=dt;PC+=2
-#define LDK(x)        PRINT("LDK\n");   for (int i = 0; i < 16; i++) { if(V[x]=keypad[i]) V[x]; }PC+=2
-#define LDTT(x)       PRINT("LDTT\n");  dt=V[x];PC+=2
-#define LDST(x)       PRINT("LDST\n");  st=V[x];PC+=2
-#define ADDI(x)       PRINT("ADDI\n");  I=V[x]+I;PC+=2
-#define LDF(x)        PRINT("LDF\n");   I=(5*(uint16_t)V[x]);PC+=2
-#define LDB(x)        PRINT("LDB\n");   ram[I]=(V[x]/100);ram[I+1]=(V[x]/10);ram[I+2]=(V[x]*10);PC+=2
-#define LDRX(x)       PRINT("LDRX\n");  for(int i=0;i<=x;i++) ram[I+i]=V[i];PC+=2
-#define LDRRX(x)      PRINT("LDRRX\n"); for(int i=0;i<=x;i++) V[i]=ram[I+i];PC+=2
+#define CLS()         PRINT_OP("CLS\n");   for(int i=0;i<SCREEN_WIDTH*SCREEN_HEIGHT;i++)display[i]=0;PC+=2
+#define RET()         PRINT_OP("RET\n");   PC=POP();PC+=2
+#define JP(addr)      PRINT_OP("JP\n");    PC=MAP_PC(addr)
+#define CALL(addr)    PRINT_OP("CALL\n");  PUSH(PC); JP(addr)
+#define SE(x, b)      PRINT_OP("SE\n");    if(V[x]==b)PC+=2;PC+=2
+#define SNE(x, b)     PRINT_OP("SNE\n");   if(V[x]!=b)PC+=2;PC+=2
+#define SER(x, y)     PRINT_OP("SER\n");   if(V[x]==V[y])PC+=2;PC+=2
+#define SNER(x, y)    PRINT_OP("SNER\n");  if(V[x]!=V[y])PC+=2;PC+=2
+#define LD(x, b)      PRINT_OP("LD\n");    V[x]=b;PC+=2
+#define ADD(x, b)     PRINT_OP("ADD\n");   V[x]=V[x]+b;PC+=2
+#define LDR(x, y)     PRINT_OP("LDR\n");   V[x]=V[y];PC+=2
+#define OR(x, y)      PRINT_OP("OR\n");    V[x]=V[x]|V[y];PC+=2
+#define AND(x, y)     PRINT_OP("AND\n");   V[x]=V[x]&V[y];PC+=2
+#define XOR(x, y)     PRINT_OP("XOR\n");   V[x]=V[x]^V[y];PC+=2
+#define ADDR(x, y, p) PRINT_OP("ADDR\n");  p=V[x]+V[y];V[0xF]=(p>=256?1:0);V[x]=(uint8_t)p;PC+=2
+#define SUBR(x, y)    PRINT_OP("SUBR\n");  V[0xF]=(V[x]>V[y]?1:0);V[x]=V[x]-V[y];PC+=2
+#define SHR(x, y)     PRINT_OP("SHR\n");   V[0xF]=V[x]&1;V[x]/=2;PC+=2
+#define SUBN(x, y)    PRINT_OP("SUBN\n");  V[0xF]=(V[y]>V[x]?1:0);V[x]=V[y]-V[x];PC+=2
+#define SHL(x, y)     PRINT_OP("SHL\n");   V[0xF]=V[x]&0x80;V[x]*=2;PC+=2
+#define LDI(addr)     PRINT_OP("LDI\n");   I=addr;PC+=2
+#define JPO(addr)     PRINT_OP("JPO\n");   JP(addr+V[0]);PC+=2
+#define RND(x, b)     PRINT_OP("RND\n");   V[x]=RAND()&b;PC+=2
+#define DRW(x, y, n)  PRINT_OP("DRW\n");   V[0xF]=0;for(int yc=0;yc<n;yc++){uint16_t pix=ram[I+yc];for(int xc=0;xc<8;xc++){if((pix&(0x80>>xc))!=0){if (DISPLAY(x,y,xc,yc) == 1){V[0xF]=1;}DISPLAY(x,y,xc,yc)^=1;}}}drawflag=1;PC+=2
+#define SKP(x)        PRINT_OP("SKP\n");   if(KEY(V[x])==1) PC+=4; else PC+=2
+#define SKNP(x)       PRINT_OP("SKNP\n");  if(KEY(V[x])!=1) PC+=4; else PC+=2
+#define LDT(x)        PRINT_OP("LDT\n");   V[x]=dt;PC+=2
+#define LDK(x)        PRINT_OP("LDK\n");   for (int i = 0; i < 16; i++) { if(keypad[i]==1) {V[x]=i;} }PC+=2
+#define LDTT(x)       PRINT_OP("LDTT\n");  dt=V[x];PC+=2
+#define LDST(x)       PRINT_OP("LDST\n");  st=V[x];PC+=2
+#define ADDI(x)       PRINT_OP("ADDI\n");  I=V[x]+I;PC+=2
+#define LDF(x)        PRINT_OP("LDF\n");   I=(0x5*V[x]);PC+=2
+#define LDB(x)        PRINT_OP("LDB\n");   ram[I]=(V[x]/100);ram[I+1]=(V[x]/10)%10;ram[I+2]=(V[x]%100)%10;PC+=2
+#define LDRX(x)       PRINT_OP("LDRX\n");  for(int i=0;i<=x;i++) ram[I+i]=V[i];I+=x+1;PC+=2
+#define LDRRX(x)      PRINT_OP("LDRRX\n"); for(int i=0;i<=x;i++) V[i]=ram[I+i];I+=x+1;PC+=2
 
 /* memory map */
 #define RAM_START  0x0000
@@ -171,29 +177,115 @@ uint8_t SP;
 
 /* is the system halted? */
 uint8_t hlt;
-/* last key pressed */
-uint8_t key;
 
+/* should the system redraw */
 uint8_t drawflag;
 uint8_t emu_mode = MODE_PLAY;
 
 /* chip8 keypad layout */
 const unsigned char keymap[16] = {
-    '1','2','3','4', 
-    'q','w','e','r', 
-    'a','s','d','f', 
-    'z','x','c','v'
+    'x', // 0
+    '1', // 1
+    '2', // 2
+    '3', // 3
+    'q', // 4
+    'w', // 5
+    'e', // 6
+    'a', // 7
+    's', // 8
+    'd', // 9
+    'z', // 10
+    'c', // 11
+    '4', // 12
+    'r', // 13
+    'f', // 14
+    'v'  // 15
 };
 unsigned int keypad[16];
 
-void argparse( int argc, char *argv[] ) {
+/* parse command arguments */
+void argparse(int argc, char *argv[]);
+
+/* initialize chip8 */
+void chip_initialize( void );
+/* print chip8 memory map */
+void print_memory_map( void );
+/* print preview of rom file */
+void print_rom( void );
+/* take a snapshot of ram */
+void ram_snapshot( void );
+/* snapshot the current display to a text file */
+void display_snapshot( void );
+
+/* initialize display */
+void initialize_sdl( void );
+/* update display */
+void sdl_update( void );
+/* quit sdl */
+void sdl_close( void );
+/* update input with sdl */
+size_t update_input( void );
+
+/* execute next instruction in ROM */
+void update_cpu( void );
+
+int main(int argc, char *argv[]) {
+    /* initialize the chip8 */
+    chip_initialize();
+    /* parse command line options */
+    argparse(argc, argv);
+
+    /* init sdl */
+    initialize_sdl();
+
+    /* print rom contents */
+    print_rom();
+    /* print the memory map */
+    print_memory_map();
+
+    int quit = 0;
+    int cycles = 1;
+    /* main loop */
+    while (!quit) {
+        if (cycles%16==0) {
+            if (dt>0) dt--;
+            if (st>0) {
+                st=0;
+            }
+        }
+        if (update_input()) {
+            quit=1;
+            break;
+        }
+        
+        if (!hlt)
+            update_cpu();
+        if (drawflag) {
+            for (int x = 0; x < SCREEN_WIDTH*SCREEN_HEIGHT; x++) {
+                sdl_display[x] = BIT_TO_PIXEL(display[x]);
+            }
+            drawflag=0;
+            sdl_update();
+        }
+        cycles++;
+        if (emu_mode==MODE_DEBUG) HLT();
+        else usleep(1000);
+    }
+
+    display_snapshot();
+
+    ram_snapshot();
+
+    sdl_close();
+}
+
+void argparse(int argc, char *argv[]) {
     int failure = 0;
     for (int i = 0; i < argc; i++) {
         /* flag found, let's check what it is */
         if (argv[i][0]=='-') {
             char *flag = NULL;
             MAP_TO(flag, argv[i], sizeof(char)*1, (strlen(argv[i]))*sizeof(char));
-            //printf("%s\n", flag);
             /* flag[0] is equal to argv[i][1] */
             switch (flag[0]) {
                 default:
@@ -228,79 +320,6 @@ void argparse( int argc, char *argv[] ) {
     if (failure)
         exit(-1);
 }
-
-/* initialize chip8 */
-void chip_initialize( void );
-/* print chip8 memory map */
-void print_memory_map( void );
-/* print preview of rom file */
-void print_rom( void );
-/* take a snapshot of ram */
-void ram_snapshot( void );
-/* snapshot the current display to a text file */
-void display_snapshot( void );
-
-/* initialize display */
-void initialize_sdl( void );
-/* update display */
-void sdl_update( void );
-/* quit sdl */
-void sdl_close( void );
-size_t update_input( void );
-
-/* execute next instruction in ROM */
-void update_cpu( void );
-
-int main(int argc, char *argv[]) {
-    /* initialize the chip8 */
-    chip_initialize();
-
-    argparse(argc, argv);
-
-    /* init sdl */
-    initialize_sdl();
-
-    /* print rom contents */
-    print_rom();
-    /* print the memory map */
-    print_memory_map();
-
-    /* main loop */
-    int quit = 0;
-    int cycles = 1;
-    while (!quit) {
-        if (cycles%16==0) {
-            if (dt>0) dt--;
-            if (st>0) {
-                st=0;
-            }
-        }
-        if (update_input()) {
-            quit=1;
-            break;
-        }
-        
-        if (!hlt)
-            update_cpu();
-        if (drawflag) {
-            for (int x = 0; x < SCREEN_WIDTH*SCREEN_HEIGHT; x++) {
-                sdl_display[x] = BIT_TO_PIXEL(display[x]);
-            }
-            drawflag=0;
-            sdl_update();
-        }
-        cycles++;
-        if (emu_mode==MODE_DEBUG) HLT();
-        else usleep(1000);
-    }
-
-    display_snapshot();
-
-    ram_snapshot();
-
-    sdl_close();
-}
-
 
 void load_rom_file(FILE *fp, const char *fname) {
     fp = fopen(fname, "rb");
@@ -381,6 +400,7 @@ size_t update_input( void ) {
             for (int i = 0; i < 16; i++) {
                 if (keymap[i] == e.key.keysym.sym) {
                     keypad[i] = 1;
+                    //printf("%i:%c:%i\n", i, keymap[i], keypad[i]);
                     hlt = 0;
                 }
             }
@@ -388,6 +408,7 @@ size_t update_input( void ) {
             for (int i = 0; i < 16; i++) {
                 if (keymap[i] == e.key.keysym.sym) {
                     keypad[i] = 0;
+                    //printf("%i:%c:%i\n", i, keymap[i], keypad[i]);
                 }
             }
         }
